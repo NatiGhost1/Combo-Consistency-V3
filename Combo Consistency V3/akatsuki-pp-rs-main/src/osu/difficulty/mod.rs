@@ -199,8 +199,8 @@ impl DifficultyValues {
         // * Assumes any AP score set with 4-mod is cheated and buffs pp output (balences non-legit autopilot)  
         if mods.ap() && mods.dt() && mods.hd() && mods.hr() && mods.fl() && !mods.ez() {
             aim_rating = 0.0;
-            speed_rating *= 0.9;
-            flashlight_rating *= 0.15
+            speed_rating *= 0.85;
+            flashlight_rating *= 0.05
         }
 
         // * (STD ONLY) Assumes all 4-mod TD scores are auto and removes touch device nerf

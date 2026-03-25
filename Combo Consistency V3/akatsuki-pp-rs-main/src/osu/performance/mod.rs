@@ -21,6 +21,7 @@ use super::{
 
 pub mod gradual;
 pub mod relax_marathon;
+pub mod autopilot_nerf
 
 use relax_marathon::{relax_marathon_multiplier, MarathonDecayParams};
 
@@ -837,7 +838,7 @@ impl OsuPerformanceInner<'_> {
         // * make rx scores with 3-10 effective misses worth less than or more closely to scores on vanilla
         // * (MIGHT REMOVE) rx scores over 10 effective misses multiply base rx nerf by .91 (base mult becomes ~0.9) 
 
-        if self.mods.rx() && self.effective_miss_count >= 3.0 && <= self.effective_miss_count 10 {
+        if self.mods.rx() && self.effective_miss_count >= 3.0 && self.effective_miss_count <= 10 {
             multiplier *= rx_base_nerf;
         }
         
@@ -902,9 +903,9 @@ impl OsuPerformanceInner<'_> {
         let mut flashlight_value = flashlight_value;
 
         if let Some(p) = self.combo_consistency_v3_p {
-            let 1 = short_map_tax(self.attrs.max_combo);
-            let s = miss_factor(self.state.misses, p);
-            let scale = 1 * s;
+            let tax = short_map_tax(self.attrs.max_combo);
+            let s = self.apply_cc_v3_multiplier();
+            let scale = tax * s;
 
             pp *= scale;
             aim_value *= scale;
@@ -933,48 +934,49 @@ impl OsuPerformanceInner<'_> {
         // * Uses effective miss count now
         let map_max_combo = self.attrs.max_combo as f64;
         let misses = self.effective_miss_count;
+        let misses_raw = self.misses;
 
         let mut p = base_p;
         
         // * MOD SPECIFIC CONDITIONS
         if overall_combo_consistency_v3_enabled() {
-            p= 0.98;
+            p = 0.998;
         }
 
         if self.mods.rx() {
-            p = 0.97;
+            p = 0.997;
         }
         
         if self.mods.ap() {
-            p = 0.96;
+            p = 0.996;
         }
 
         if self.mods.dt() && self.mods.hr() {
-        p = 0.9825;
+        p = 0.99825;
     }
 
     if self.mods.dt() && self.mods.ez() {
-        p = 0.9828;
+        p = 0.99828;
     }
 
     // * Assumes maps with specific 500 max combo & are overweighted and punishes misses more (miss penalty varies with mods)
 
     if map_max_combo <= 500 && self.mods.dt() {
-        p = 0.96;
+        p = 0.996;
     }
 
     if map_max_combo <= 500 && self.mods.dt() && self.mods.hr() {
-        p = 0.97;
+        p = 0.997;
     }
 
     if map_max_combo <= 500 && self.mods.rx() {
-        p = 0.95
+        p = 0.995
     }
 
     // * ONL FARM NERF
 
     if map_max_combo <= 250 && self.mods.fl() && self.mods.hr() && self.mods.dt() && self.mods.hd() {
-        p = 0.91;
+        p = 0.991;
     }
 
     if map_max_combo <= 250 && self.mods.rx() && self.mods.fl() && self.mods.hr() && self.mods.dt() && self.mods.hd() {
@@ -988,14 +990,14 @@ impl OsuPerformanceInner<'_> {
     // * MARATHON MISS PENALTIES
 
     if map_max_combo >= 5000 && self.effective_miss_count() < 5.0 {
-        p = 0.99;
+        p = 0.999;
     }
 
     else if map_max_combo >= 5000
         && self.effective_miss_count() >= 5.0
         && self.effective_miss_count() != 10.0
     {
-        p = 0.983;
+        p = 0.9983;
     }
 
     else if map_max_combo >= 5000
@@ -1037,10 +1039,6 @@ impl OsuPerformanceInner<'_> {
         p = 0.0000001;
     }
 
-    // Short Map Tax
-    let short_tax = 0.5 + 0.5 * (map_max_combo / (map_max_combo + 500.0));
-    p *= short_tax;
-
     // Final miss exponent
     p.powi(misses as i32)
 
@@ -1066,14 +1064,13 @@ impl OsuPerformanceInner<'_> {
                 self.effective_miss_count,
                 self.attrs.aim_difficult_strain_count,
             );
-            
-            // *Calculates all 4-mod scores using misses (raw) instead of misses (effective)
-            else 
-                if self.mods.fl() && self.mods.dt() && self.mods.hd() && self.mods.hr()
+            }   else if self.mods.fl() && self.mods.dt() && self.mods.hd() && self.mods.hr() {
+                // * Calculates all 4-mod scores using raw misses instead of effective misses
                     aim_value *= Self::calculate_miss_penalty(
                         self.misses,
                         self.attrs.aim_difficult_strain_count,
             );
+            
         }
 
         let ar_factor = if self.mods.rx() {

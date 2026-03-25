@@ -92,7 +92,7 @@ fn local_sr_per_minute(strains_aim: &[f64], strains_speed: &[f64]) -> Vec<f64> {
 
     let mut out = Vec::with_capacity(n_minutes);
     for k in 0..n_minutes {
-        let star = k * peaks_per_min;
+        let start = k * peaks_per_min;
         let end = ((k + 1) * peaks_per_min).min(strains_aim.len());
         let aim_slice = &strains_aim[start..end];
         let speed_slice = &strains_speed[start..end];
