@@ -927,121 +927,34 @@ impl OsuPerformanceInner<'_> {
 
     // * Combo Consistency Multiplier 
     fn apply_cc_v3_multiplier(&self) -> f64 {
-        let Some(base_p) = self.combo_consistency_v3_p else {
-            return 1.0;
-        };
-
-        // * Uses effective miss count now
-        let map_max_combo = self.attrs.max_combo as f64;
         let misses = self.effective_miss_count;
-        let misses_raw = self.misses;
-
-        let mut p = base_p;
-        
-        // * MOD SPECIFIC CONDITIONS
-        if overall_combo_consistency_v3_enabled() {
-            p = 0.998;
-        }
-
-        if self.mods.rx() {
-            p = 0.997;
-        }
-        
-        if self.mods.ap() {
-            p = 0.996;
-        }
-
-        if self.mods.dt() && self.mods.hr() {
-        p = 0.99825;
+        if misses <= 0.0 {
+        return 1.0;
     }
+   
+    let map_max_combo = self.attrs.max_combo
+    let mut p = 0.998;
 
-    if self.mods.dt() && self.mods.ez() {
-        p = 0.99828;
-    }
-
-    // * Assumes maps with specific 500 max combo & are overweighted and punishes misses more (miss penalty varies with mods)
-
-    if map_max_combo <= 500 && self.mods.dt() {
-        p = 0.996;
-    }
-
-    if map_max_combo <= 500 && self.mods.dt() && self.mods.hr() {
-        p = 0.997;
-    }
-
-    if map_max_combo <= 500 && self.mods.rx() {
-        p = 0.995
-    }
-
+    // Apply existing logic for mods
+    if self.mods.rx() { p -= 0.02; }
+    if self.mods.ap() { p -= 0.05; }
+    if self.mods.dt() && self.mods.hr() { p += 0.00025 }
+    if self.mods.dt() && self.mods.ez() { p += 0.00028 }
+    // * OVERWEIGHTED FARM/AIMSLOP ASSUMPTION
+    if map_max_combo <= 500 && self.mods.dt() { p -= 0.02}
+    if map_max_combo <= 500 && self.mods.dt() && self.mods.hr() { p -= 0.01 }
+    if map_max_combo <= 500 && self.mods.rx() { p -= 0.03 }
     // * ONL FARM NERF
+    if map_max_combo <= 250 && self.mods.fl() && self.mods.hr() && self.mods.dt() && self.mods.hd() { p -= 0.1 }
+    if map_max_combo <= 250 && self.mods.fl() && self.mods.hr() && self.mods.dt() && self.mods.hd() && self.mods.rx() { p -= 0.12 }
+    if map_max_combo <= 250 && self.mods.fl() && self.mods.hr() && self.mods.dt() && self.mods.hd() && self.mods.ap() { p -= 0.18 }
+    
+    // Each miss becomes progressively more punishing
+    // Higher exponent (e.g., 1.5) = harsher scaling
+    let miss_weight = misses.powf(1.1); 
 
-    if map_max_combo <= 250 && self.mods.fl() && self.mods.hr() && self.mods.dt() && self.mods.hd() {
-        p = 0.991;
-    }
-
-    if map_max_combo <= 250 && self.mods.rx() && self.mods.fl() && self.mods.hr() && self.mods.dt() && self.mods.hd() {
-        p = 0.88;
-    }
-
-    if map_max_combo <= 250 && self.mods.ap() && self.mods.fl() && self.mods.hr() && self.mods.dt() && self.mods.hd() {
-        p = 0.87;
-    }
-
-    // * MARATHON MISS PENALTIES
-
-    if map_max_combo >= 5000 && self.effective_miss_count() < 5.0 {
-        p = 0.999;
-    }
-
-    else if map_max_combo >= 5000
-        && self.effective_miss_count() >= 5.0
-        && self.effective_miss_count() != 10.0
-    {
-        p = 0.9983;
-    }
-
-    else if map_max_combo >= 5000
-        && self.effective_miss_count() >= 10.0
-        && self.effective_miss_count() != 15.0
-    {
-        p = 0.98;
-    }
-
-    else if map_max_combo >= 5000
-        && self.effective_miss_count() >= 15.0
-        && self.effective_miss_count() != 20.0
-    {
-        p = 0.975;
-    }
-
-    else if map_max_combo >= 5000
-        && self.effective_miss_count() >= 20.0
-        && self.effective_miss_count() != 31.0
-    {
-        p = 0.97;
-    }
-
-    else if map_max_combo >= 5000
-        && self.effective_miss_count() > 30.0
-        && self.effective_miss_count() < 50.0
-    {
-        p = 0.90;
-    }
-
-    else if map_max_combo >= 5000
-        && self.effective_miss_count() >= 50.0
-        && self.effective_miss_count() != (map_max_combo / 2.0)
-    {
-        p = 0.85;
-    }
-
-    else if map_max_combo >= 5000 && self.effective_miss_count() >= (map_max_combo / 2.0) {
-        p = 0.0000001;
-    }
-
-    // Final miss exponent
-    p.powi(misses as i32)
-
+    // * MISS WEIGHTING
+    p.powf(miss_weight)
     }
 
     fn compute_aim_value(&self) -> f64 {
