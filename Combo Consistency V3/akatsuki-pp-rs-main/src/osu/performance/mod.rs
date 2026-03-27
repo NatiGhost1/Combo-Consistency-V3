@@ -1249,7 +1249,7 @@ fn total_imperfect_hits(state: &OsuScoreState) -> f64 {
     f64::from(state.n100 + state.n50 + state.misses)
 }
 
-// combo consistency map tax and shi
+// combo consistency map tax and shi (old ver.)
 fn short_map_tax(max_combo: u32) -> f64 {
     let m = max_combo as f64;
     0.5 + 0.5 * (m / (m + 500))
