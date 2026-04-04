@@ -951,7 +951,7 @@ impl OsuPerformanceInner<'_> {
     
     // Each miss becomes progressively more punishing
     // Higher exponent (e.g., 1.5) = harsher scaling
-    let miss_weight = misses.powf(1.1); 
+    let miss_weight = misses.powf(1.3); 
 
     // * MISS WEIGHTING
     p.powf(miss_weight)
